@@ -5,8 +5,7 @@ This is a small and a basic implementation of a web crawler. The idea is to pars
 Limitation:
 This program has several limitations:
 1. It only looks for href attribute, but there are other attributes such as "src" etc. Those are not picked by the program.
-2. It uses regular expressions to match href attributes. The regular expressions used is not optimal, hence, it is not able to correctly extract an URL with 100% accuracy.
-3. The program uses an in-memory repository which is simply a map. For production use a persistent store must be used.
+2. The program uses an in-memory repository which is simply a map. For production use a persistent store must be used.
 
 Building & Running:
 To build this program go the root of the maven project: web-crawler and run: mvn clean package. This will generate the jar inside target.
