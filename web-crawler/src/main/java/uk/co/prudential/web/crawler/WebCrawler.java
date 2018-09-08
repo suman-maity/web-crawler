@@ -2,8 +2,11 @@ package uk.co.prudential.web.crawler;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,71 +15,89 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import uk.co.prudential.web.crawler.repository.Repository;
-import uk.co.prudential.web.crawler.util.HtmlParserUtil;
-import uk.co.prudential.web.crawler.util.RegexUtil;
 
 @Component
 public class WebCrawler implements CommandLineRunner {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(WebCrawler.class);
 
-	private static final String HREF_REGEX = "href=\".*\"";
-	private static final int HREF_TAG_LENGTH = "href=".length();
+	private static final String HREF_REGEX = "href=\"";
+	// private static final int HREF_TAG_LENGTH = "href=".length();
 
 	private String rootUrl;
 	private Map<String, Boolean> urlToIsVistedMap = new HashMap<>();
+
+	@Autowired
+	private HtmlParser htmlParser;
 
 	@Autowired
 	private Repository repository;
 
 	@Override
 	public void run(String... args) throws Exception {
-		this.rootUrl = args[0];
+		if (args.length == 0) {
+			LOGGER.error("Invalid arguments passed");
+			System.exit(1);
+		}
 
-		// TODO the below code is to stop the program. The program must be improved so
-		// that it exits gracefully.
-		new Thread(new Runnable() {
+		setRootUrl(args[0]);
+		if (args.length > 1) {
+			try {
+				long stopAfterMiliseconds = Long.parseLong(args[1]);
+				if (stopAfterMiliseconds > 0) {
+					new Thread(new Runnable() {
 
-			@Override
-			public void run() {
-				try {
-					Thread.sleep(10000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+						@Override
+						public void run() {
+							try {
+								Thread.sleep(stopAfterMiliseconds);
+								repository.print();
+							} catch (InterruptedException e) {
+								LOGGER.error("", e);
+							}
+							System.exit(3);
+						}
+					}).start();
 				}
-				repository.print();
-				System.exit(0);
+			} catch (NumberFormatException e) {
+				LOGGER.error("Invalid stopAfterMiliseconds argument", e.getMessage());
+				System.exit(2);
 			}
-		}).start();
-
-		parseRecursive(rootUrl); // do crawl
+		}
+		parseRecursive(getRootUrl()); // do crawl
+		repository.print();
 	}
 
-	private void parseRecursive(String url) {
-		if (urlToIsVistedMap.containsKey(url) && urlToIsVistedMap.get(url)) {
+	public void parseRecursive(String url) {
+		// if (urlToIsVistedMap.containsKey(url) && urlToIsVistedMap.get(url)) {
+		// return;
+		// }
+
+		if (Boolean.TRUE.equals(urlToIsVistedMap.get(url))) {
 			return;
 		}
+
+		urlToIsVistedMap.put(url, Boolean.TRUE);
 
 		String htmlDocText;
 		try {
-			LOGGER.info("Parsing document at URL " + url);
-			htmlDocText = HtmlParserUtil.parseHtml(url);
-			// System.out.println(htmlDocText);
+			// LOGGER.debug("Parsing document at URL " + url);
+			htmlDocText = htmlParser.parseHtml(url);
 		} catch (IOException e) {
-			// throw new HtmlParserException(e);
 			LOGGER.warn("Failed to parse URL: " + url);
 			return;
-		} finally {
-			urlToIsVistedMap.put(url, Boolean.TRUE);
 		}
 
-		LOGGER.info("Successfully parse document at URL " + url);
-		// System.out.println(htmlDocText);
-		List<String> nextUrls = RegexUtil.getMatchingTexts(htmlDocText, HREF_REGEX);
-		repository.add(url, nextUrls);
+		if (htmlDocText == null) {
+			LOGGER.warn("No document retrieved");
+			return;
+		}
+
+		LOGGER.debug("Successfully parsed document at URL " + url);
+		List<String> nextUrls = getNextUrls(htmlDocText, HREF_REGEX);
+		repository.getData().put(url, nextUrls);
 
 		for (String nextUrl : nextUrls) {
-			nextUrl = nextUrl.substring(HREF_TAG_LENGTH + 1, nextUrl.length() - 1);
 			if (nextUrl.startsWith("http")) {
 				if (nextUrl.contains(rootUrl)) {
 					parseRecursive(nextUrl);
@@ -84,8 +105,41 @@ public class WebCrawler implements CommandLineRunner {
 					continue;
 				}
 			} else {
-				parseRecursive(rootUrl + nextUrl);
+				if (nextUrl.startsWith("/")) {
+					nextUrl = nextUrl.substring(1);
+				}
+				parseRecursive(getRootUrl() + nextUrl);
 			}
 		}
+	}
+
+	public String getRootUrl() {
+		return rootUrl;
+	}
+
+	public void setRootUrl(String rootUrl) {
+		this.rootUrl = rootUrl;
+	}
+
+	public Repository getRepository() {
+		return repository;
+	}
+
+	public List<String> getNextUrls(String sourceText, String... regexExpressions) {
+
+		List<String> nextUrls = new LinkedList<>();
+
+		for (String regexExpr : regexExpressions) {
+			Pattern pattern = Pattern.compile(regexExpr);
+			Matcher matcher = pattern.matcher(sourceText);
+
+			while (matcher.find()) {
+				int startIndexOfNextUrl = matcher.end();
+				int lastIndexOfNextUrl = sourceText.indexOf('"', startIndexOfNextUrl);
+				nextUrls.add(sourceText.substring(startIndexOfNextUrl, lastIndexOfNextUrl));
+			}
+		}
+
+		return nextUrls;
 	}
 }
