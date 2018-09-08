@@ -12,7 +12,7 @@ Building & Running:
 To build this program go the root of the maven project: web-crawler and run: mvn clean package. This will generate the jar inside target.
 
 To run the program run the following on command/shell prompt from within target: 
-java -jar web-crawler-0.0.1-SNAPSHOT.jar https://www.prudential.co.uk/
+java -jar web-crawler-0.0.1-SNAPSHOT.jar https://www.prudential.co.uk/ 30000
 
 Enhancements:
 The following enhancements are possible:
