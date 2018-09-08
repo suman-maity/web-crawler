@@ -5,13 +5,16 @@ This is a small and a basic implementation of a web crawler. The idea is to pars
 Limitation:
 This program has several limitations:
 1. It only looks for href attribute, but there are other attributes such as "src" etc. Those are not picked by the program.
-2. The program uses an in-memory repository which is simply a map. For production use a persistent store must be used.
+2. The progarm can be improved in terms of ignoring binary files such as images and correctly parsing PDF and other types of binary yet textual files.
+3. The program uses an in-memory repository which is simply a map. For production use a persistent store must be used.
 
 Building & Running:
 To build this program go the root of the maven project: web-crawler and run: mvn clean package. This will generate the jar inside target.
 
 To run the program run the following on command/shell prompt from within target: 
 java -jar web-crawler-0.0.1-SNAPSHOT.jar https://www.prudential.co.uk/ 30000
+
+The first argument is the URL to start crawling with and the second argument is to stop crawling after the given time is elasped. The secound arguemnt is optional. If not supplied, the program continues to run until it has visited all the URLs starting with the root URL passed as the first argument.
 
 Enhancements:
 The following enhancements are possible:
